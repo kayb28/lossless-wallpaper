@@ -23,6 +23,8 @@
     <string name="quality_crop_full">imagen completa</string>
     <string name="quality_ok_title">✔ Cobertura completa</string>
     <string name="quality_ok_body">El recorte cubre la resolución de la pantalla. Se aplicará el archivo original 1:1, sin reescalar.</string>
+    <string name="quality_partial_title">ℹ Menor que el mínimo del sistema</string>
+    <string name="quality_partial_body">El recorte cubre tu pantalla, pero el sistema pide %1$s (zona de scroll del launcher). En algunos dispositivos el fondo puede verse algo menos nítido al desplazar la pantalla de inicio.</string>
     <string name="quality_warn_title">⚠ Imagen menor que la pantalla</string>
     <string name="quality_warn_body">La app NO amplía la imagen: se envía el archivo original tal cual, pero el sistema la reescalará %1$s al mostrarla. Para calidad 1:1 usa una imagen más grande.</string>
 

@@ -399,25 +399,46 @@ private fun QualityPanel(
             )
 
             Spacer(Modifier.height(10.dp))
-            if (spec.needsUpscale) {
-                QualityBanner(
-                    backgroundColor = Color(0xFF3B2F14),
-                    borderColor = Color(0xFF8A6D2F),
-                    textColor = Color(0xFFE8C97A),
-                    title = stringResource(R.string.quality_warn_title),
-                    body = stringResource(
-                        R.string.quality_warn_body,
-                        String.format(Locale.US, "×%.2f", spec.systemScale),
-                    ),
-                )
-            } else {
-                QualityBanner(
-                    backgroundColor = Color(0xFF14321F),
-                    borderColor = Color(0xFF2F6D45),
-                    textColor = Color(0xFF9BE0B4),
-                    title = stringResource(R.string.quality_ok_title),
-                    body = stringResource(R.string.quality_ok_body),
-                )
+            val coversDesired = spec.cropWidth >= screen.desiredWidth && spec.cropHeight >= screen.desiredHeight
+            when {
+                spec.needsUpscale -> {
+                    QualityBanner(
+                        backgroundColor = Color(0xFF3B2F14),
+                        borderColor = Color(0xFF8A6D2F),
+                        textColor = Color(0xFFE8C97A),
+                        title = stringResource(R.string.quality_warn_title),
+                        body = stringResource(
+                            R.string.quality_warn_body,
+                            String.format(Locale.US, "×%.2f", spec.systemScale),
+                        ),
+                    )
+                }
+                !coversDesired -> {
+                    QualityBanner(
+                        backgroundColor = Color(0xFF14321F),
+                        borderColor = Color(0xFF2F6D45),
+                        textColor = Color(0xFF9BE0B4),
+                        title = stringResource(R.string.quality_ok_title),
+                        body = stringResource(R.string.quality_ok_body),
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    QualityBanner(
+                        backgroundColor = Color(0xFF1B2740),
+                        borderColor = Color(0xFF3D5480),
+                        textColor = Color(0xFFA8C4F0),
+                        title = stringResource(R.string.quality_partial_title),
+                        body = stringResource(R.string.quality_partial_body, "${screen.desiredWidth}×${screen.desiredHeight}"),
+                    )
+                }
+                else -> {
+                    QualityBanner(
+                        backgroundColor = Color(0xFF14321F),
+                        borderColor = Color(0xFF2F6D45),
+                        textColor = Color(0xFF9BE0B4),
+                        title = stringResource(R.string.quality_ok_title),
+                        body = stringResource(R.string.quality_ok_body),
+                    )
+                }
             }
         }
     }

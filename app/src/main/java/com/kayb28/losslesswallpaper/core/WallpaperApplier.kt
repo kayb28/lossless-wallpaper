@@ -39,10 +39,29 @@ object WallpaperApplier {
                 val wallpaperManager = WallpaperManager.getInstance(context)
                 val hint = crop?.let { Rect(it.left, it.top, it.right, it.bottom) }
 
-                // InputStream nuevo en cada aplicación (no se reutiliza uno consumido).
-                context.contentResolver.openInputStream(uri)?.use { input ->
-                    wallpaperManager.setStream(input, hint, true, target.flags)
-                } ?: error("No se pudo abrir la imagen seleccionada")
+                when (target) {
+                    WallpaperTarget.HOME -> setOriginal(wallpaperManager, context, uri, hint, WallpaperManager.FLAG_SYSTEM)
+                    WallpaperTarget.LOCK -> setOriginal(wallpaperManager, context, uri, hint, WallpaperManager.FLAG_LOCK)
+                    WallpaperTarget.BOTH -> {
+                        // Dos llamadas separadas: algunos OEMs manejan mal los
+                        // flags combinados y solo aplicaban una pantalla.
+                        setOriginal(wallpaperManager, context, uri, hint, WallpaperManager.FLAG_SYSTEM)
+                        setOriginal(wallpaperManager, context, uri, hint, WallpaperManager.FLAG_LOCK)
+                    }
+                }
             }
         }
+
+    private fun setOriginal(
+        wallpaperManager: WallpaperManager,
+        context: Context,
+        uri: Uri,
+        hint: Rect?,
+        flags: Int,
+    ) {
+        // InputStream nuevo en cada llamada (no se reutiliza uno consumido).
+        context.contentResolver.openInputStream(uri)?.use { input ->
+            wallpaperManager.setStream(input, hint, true, flags)
+        } ?: error("No se pudo abrir la imagen seleccionada")
+    }
 }
