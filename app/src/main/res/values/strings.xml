@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Wallpaper Sin Pérdida</string>
+    <string name="tagline">Aplica el archivo original, sin recomprimir ni reescalar</string>
+
+    <!-- Estado vacío -->
+    <string name="empty_title">Elige una imagen de tu galería</string>
+    <string name="empty_body">PNG, WebP o JPG tal como están. La imagen se envía al sistema byte a byte, sin pasar por Bitmap ni recompresión.</string>
+    <string name="choose_image">Elegir imagen</string>
+    <string name="change_image">Cambiar imagen</string>
+
+    <!-- Vista previa -->
+    <string name="crop_hint">Arrastra para mover la zona del recorte (proporción exacta de la pantalla)</string>
+    <string name="crop_full_image">La imagen completa coincide con la proporción de la pantalla: no se recorta nada</string>
+    <string name="preview_note">Nota: la vista previa usa una copia reducida solo para pantalla. El fondo se aplica siempre con el archivo original.</string>
+
+    <!-- Panel de calidad -->
+    <string name="quality_title">Indicador de calidad</string>
+    <string name="quality_image">Imagen</string>
+    <string name="quality_screen">Pantalla real</string>
+    <string name="quality_desired">Mínimo del sistema</string>
+    <string name="quality_crop">Recorte a aplicar</string>
+    <string name="quality_crop_full">imagen completa</string>
+    <string name="quality_ok_title">✔ Cobertura completa</string>
+    <string name="quality_ok_body">El recorte cubre la resolución de la pantalla. Se aplicará el archivo original 1:1, sin reescalar.</string>
+    <string name="quality_warn_title">⚠ Imagen menor que la pantalla</string>
+    <string name="quality_warn_body">La app NO amplía la imagen: se envía el archivo original tal cual, pero el sistema la reescalará %1$s al mostrarla. Para calidad 1:1 usa una imagen más grande.</string>
+
+    <!-- Destino -->
+    <string name="target_home">Inicio</string>
+    <string name="target_lock">Bloqueo</string>
+    <string name="target_both">Ambas</string>
+
+    <!-- Acción -->
+    <string name="apply">Aplicar fondo</string>
+    <string name="applied_ok">Fondo aplicado con el archivo original ✓</string>
+    <string name="applied_fail">No se pudo aplicar: %1$s</string>
+    <string name="err_decode">No se pudo leer la imagen (formato no soportado)</string>
+</resources>
