@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -36,6 +37,8 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Slider
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -55,6 +58,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -66,11 +70,14 @@ import androidx.compose.ui.unit.dp
 import com.kayb28.losslesswallpaper.R
 import com.kayb28.losslesswallpaper.core.CropCalculator
 import com.kayb28.losslesswallpaper.core.CropSpec
+import com.kayb28.losslesswallpaper.core.ImageBorderDetector
 import com.kayb28.losslesswallpaper.core.ImageInfo
 import com.kayb28.losslesswallpaper.core.ImageMeta
 import com.kayb28.losslesswallpaper.core.RectI
 import com.kayb28.losslesswallpaper.core.ScreenInfo
 import com.kayb28.losslesswallpaper.core.WallpaperApplier
+import com.kayb28.losslesswallpaper.core.WallpaperComposer
+import com.kayb28.losslesswallpaper.core.WallpaperMode
 import com.kayb28.losslesswallpaper.core.WallpaperTarget
 import com.kayb28.losslesswallpaper.core.resolveScreenInfo
 import kotlinx.coroutines.Dispatchers
@@ -91,12 +98,18 @@ fun WallpaperApp() {
     var screen by remember { mutableStateOf<ScreenInfo?>(null) }
     var cropCenter by remember { mutableStateOf<Offset?>(null) }
     var target by remember { mutableStateOf(WallpaperTarget.BOTH) }
+    var mode by remember { mutableStateOf(WallpaperMode.CROP) }
+    var autoDetectMargins by remember { mutableStateOf(true) }
+    var detectionSensitivity by remember { mutableStateOf(0.5f) }
+    var detectedMargins by remember { mutableStateOf<RectI?>(null) }
+    var fitBackgroundColor by remember { mutableStateOf(0xFF121418.toInt()) }
     var applying by remember { mutableStateOf(false) }
     var reloadKey by remember { mutableStateOf(0, neverEqualPolicy()) }
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { picked ->
         if (picked != null) {
             cropCenter = null
+            detectedMargins = null
             uri = picked
             reloadKey++
         }
@@ -122,22 +135,65 @@ fun WallpaperApp() {
         }
     }
 
-    val spec = remember(info, screen) {
-        val i = info
-        val s = screen
-        if (i != null && s != null) {
-            CropCalculator.computeCrop(i.width, i.height, s.screenWidth, s.screenHeight)
+    LaunchedEffect(preview, info, screen, autoDetectMargins, detectionSensitivity) {
+        val sourcePreview = preview
+        val imageInfo = info
+        val screenInfo = screen
+        if (!autoDetectMargins || sourcePreview == null || imageInfo == null || screenInfo == null) {
+            detectedMargins = null
+        } else {
+            val previewBounds = withContext(Dispatchers.Default) {
+                ImageBorderDetector.detect(
+                    sourcePreview,
+                    screenInfo.screenWidth.toFloat() / screenInfo.screenHeight,
+                    detectionSensitivity,
+                )
+            }
+            detectedMargins = previewBounds?.scaleRect(
+                fromWidth = sourcePreview.width,
+                fromHeight = sourcePreview.height,
+                toWidth = imageInfo.width,
+                toHeight = imageInfo.height,
+            )
+        }
+    }
+
+    val contentBounds = remember(info, detectedMargins) {
+        val imageInfo = info ?: return@remember null
+        detectedMargins ?: RectI(0, 0, imageInfo.width, imageInfo.height)
+    }
+
+    val cropBaseSpec = remember(info, screen, contentBounds) {
+        val imageInfo = info
+        val screenInfo = screen
+        val bounds = contentBounds
+        if (imageInfo != null && screenInfo != null && bounds != null) {
+            CropCalculator.computeCrop(bounds.width, bounds.height, screenInfo.screenWidth, screenInfo.screenHeight)
         } else {
             null
         }
     }
 
-    val center = cropCenter
-    val activeCrop = remember(spec, center) {
-        when {
-            spec?.cropRect == null -> spec?.cropRect
-            center == null -> spec.cropRect
-            else -> CropCalculator.movedCrop(spec, center.x, center.y)
+    val activeCrop = remember(cropBaseSpec, contentBounds, detectedMargins, cropCenter) {
+        val baseSpec = cropBaseSpec ?: return@remember null
+        val bounds = contentBounds ?: return@remember null
+        val relative = baseSpec.cropRect
+        if (relative == null) {
+            if (detectedMargins != null) bounds else null
+        } else {
+            val center = cropCenter?.let { Offset(it.x - bounds.left, it.y - bounds.top) }
+                ?: Offset(relative.centerX, relative.centerY)
+            CropCalculator.movedCrop(baseSpec, center.x, center.y)?.offset(bounds.left, bounds.top)
+        }
+    }
+
+    val spec = remember(info, screen, activeCrop) {
+        val i = info
+        val s = screen
+        if (i != null && s != null) {
+            CropSpec(i.width, i.height, activeCrop, s.screenWidth, s.screenHeight)
+        } else {
+            null
         }
     }
 
@@ -172,8 +228,14 @@ fun WallpaperApp() {
             val currentPreview = preview
             val currentSpec = spec
             val currentUri = uri
+            val currentInfo = info
+            val currentScreen = screen
+            val currentContentBounds = contentBounds
 
-            if (currentUri == null || currentPreview == null || currentSpec == null) {
+            if (
+                currentUri == null || currentPreview == null || currentSpec == null ||
+                currentInfo == null || currentScreen == null || currentContentBounds == null
+            ) {
                 EmptyState(
                     modifier = Modifier.fillMaxWidth(),
                     onPick = {
@@ -185,16 +247,33 @@ fun WallpaperApp() {
                     bitmap = currentPreview,
                     spec = currentSpec,
                     cropRect = activeCrop,
+                    mode = mode,
+                    targetWidth = currentScreen.screenWidth,
+                    targetHeight = currentScreen.screenHeight,
+                    contentRect = currentContentBounds,
+                    fitBackgroundColor = fitBackgroundColor,
                     onMove = { dx, dy ->
-                        val base = cropCenter ?: Offset(
-                            currentSpec.cropRect?.centerX ?: 0f,
-                            currentSpec.cropRect?.centerY ?: 0f,
-                        )
+                        val bounds = activeCrop ?: currentContentBounds
+                        val base = cropCenter ?: Offset(bounds.centerX, bounds.centerY)
                         cropCenter = Offset(base.x + dx, base.y + dy)
                     },
                 )
                 Spacer(Modifier.height(12.dp))
-                QualityPanel(info = info, screen = screen, spec = currentSpec, cropRect = activeCrop)
+                ModeSelector(selected = mode, onSelect = { mode = it })
+                if (mode == WallpaperMode.FIT) {
+                    Spacer(Modifier.height(8.dp))
+                    BackgroundColorSelector(selected = fitBackgroundColor, onSelect = { fitBackgroundColor = it })
+                }
+                Spacer(Modifier.height(8.dp))
+                AutoMarginControls(
+                    enabled = autoDetectMargins,
+                    sensitivity = detectionSensitivity,
+                    hasDetected = detectedMargins != null,
+                    onEnabledChange = { autoDetectMargins = it },
+                    onSensitivityChange = { detectionSensitivity = it },
+                )
+                Spacer(Modifier.height(12.dp))
+                QualityPanel(info = currentInfo, screen = currentScreen, spec = currentSpec, cropRect = activeCrop, mode = mode)
                 Spacer(Modifier.height(12.dp))
                 TargetSelector(selected = target, onSelect = { target = it })
                 Spacer(Modifier.height(16.dp))
@@ -203,10 +282,24 @@ fun WallpaperApp() {
                     onClick = {
                         scope.launch {
                             applying = true
-                            val result = WallpaperApplier.apply(context, currentUri, activeCrop, target)
+                            val sourceArea = if (mode == WallpaperMode.CROP) activeCrop else currentContentBounds
+                            val result = WallpaperApplier.apply(
+                                context = context,
+                                uri = currentUri,
+                                crop = sourceArea,
+                                target = target,
+                                mode = mode,
+                                targetWidth = currentScreen.desiredWidth,
+                                targetHeight = currentScreen.desiredHeight,
+                                sourceWidth = currentInfo.width,
+                                sourceHeight = currentInfo.height,
+                                fitBackgroundColor = fitBackgroundColor,
+                            )
                             applying = false
                             val message = if (result.isSuccess) {
-                                context.getString(R.string.applied_ok)
+                                context.getString(
+                                    if (mode == WallpaperMode.CROP) R.string.applied_original_ok else R.string.applied_composite_ok,
+                                )
                             } else {
                                 context.getString(
                                     R.string.applied_fail,
@@ -232,7 +325,7 @@ fun WallpaperApp() {
                 }
                 Spacer(Modifier.height(8.dp))
                 OutlinedButton(
-                    onClick = { uri = null; info = null; preview = null; cropCenter = null },
+                    onClick = { uri = null; info = null; preview = null; cropCenter = null; detectedMargins = null },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp),
                 ) {
@@ -240,7 +333,7 @@ fun WallpaperApp() {
                 }
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    text = stringResource(R.string.preview_note),
+                    text = stringResource(if (mode == WallpaperMode.CROP) R.string.preview_note_crop else R.string.preview_note_effect),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
@@ -285,21 +378,142 @@ private fun EmptyState(modifier: Modifier = Modifier, onPick: () -> Unit) {
 }
 
 @Composable
+private fun ModeSelector(selected: WallpaperMode, onSelect: (WallpaperMode) -> Unit) {
+    Column {
+        Text(stringResource(R.string.mode_title), style = MaterialTheme.typography.titleSmall)
+        Row(
+            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            WallpaperMode.values().forEach { mode ->
+                FilterChip(
+                    selected = selected == mode,
+                    onClick = { onSelect(mode) },
+                    label = { Text(stringResource(mode.labelResource())) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun BackgroundColorSelector(selected: Int, onSelect: (Int) -> Unit) {
+    Column {
+        Text(stringResource(R.string.background_color), style = MaterialTheme.typography.labelMedium)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf(
+                0xFF121418.toInt() to R.string.color_charcoal,
+                0xFF53616B.toInt() to R.string.color_slate,
+                0xFFF2F2F2.toInt() to R.string.color_white,
+            ).forEach { (color, label) ->
+                FilterChip(
+                    selected = selected == color,
+                    onClick = { onSelect(color) },
+                    label = { Text(stringResource(label)) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AutoMarginControls(
+    enabled: Boolean,
+    sensitivity: Float,
+    hasDetected: Boolean,
+    onEnabledChange: (Boolean) -> Unit,
+    onSensitivityChange: (Float) -> Unit,
+) {
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+    ) {
+        Column(Modifier.fillMaxWidth().padding(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(stringResource(R.string.auto_margins), style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        stringResource(
+                            when {
+                                !enabled -> R.string.margins_disabled
+                                hasDetected -> R.string.margins_found
+                                else -> R.string.margins_not_found
+                            },
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(checked = enabled, onCheckedChange = onEnabledChange)
+            }
+            if (enabled) {
+                Text(stringResource(R.string.sensitivity), style = MaterialTheme.typography.labelMedium)
+                Slider(value = sensitivity, onValueChange = onSensitivityChange, valueRange = 0f..1f, steps = 1)
+            }
+        }
+    }
+}
+
+private fun WallpaperMode.labelResource(): Int = when (this) {
+    WallpaperMode.CROP -> R.string.mode_crop
+    WallpaperMode.FIT -> R.string.mode_fit
+    WallpaperMode.AUTO_COLOR -> R.string.mode_auto_color
+    WallpaperMode.BLACK -> R.string.mode_black
+    WallpaperMode.BLUR -> R.string.mode_blur
+    WallpaperMode.EXTEND_EDGES -> R.string.mode_extend_edges
+}
+
+private fun RectI.offset(dx: Int, dy: Int): RectI = RectI(left + dx, top + dy, right + dx, bottom + dy)
+
+private fun RectI.scaleRect(fromWidth: Int, fromHeight: Int, toWidth: Int, toHeight: Int): RectI {
+    val left = (left.toFloat() * toWidth / fromWidth).toInt().coerceIn(0, toWidth - 1)
+    val top = (top.toFloat() * toHeight / fromHeight).toInt().coerceIn(0, toHeight - 1)
+    val right = (right.toFloat() * toWidth / fromWidth).toInt().coerceIn(left + 1, toWidth)
+    val bottom = (bottom.toFloat() * toHeight / fromHeight).toInt().coerceIn(top + 1, toHeight)
+    return RectI(left, top, right, bottom)
+}
+
+@Composable
 private fun PreviewCard(
     bitmap: Bitmap,
     spec: CropSpec,
     cropRect: RectI?,
+    mode: WallpaperMode,
+    targetWidth: Int,
+    targetHeight: Int,
+    contentRect: RectI,
+    fitBackgroundColor: Int,
     onMove: (Float, Float) -> Unit,
 ) {
     // `Bitmap` no expone `id`; remember(bitmaps) compara por identidad (Bitmap no
     // sobrescribe equals), así que un nuevo decodificado => nuevo ImageBitmap.
     val imageBitmap = remember(bitmap) { bitmap.asImageBitmap() }
+    var composedPreview by remember { mutableStateOf<Bitmap?>(null) }
+    LaunchedEffect(bitmap, mode, targetWidth, targetHeight, contentRect, fitBackgroundColor) {
+        composedPreview?.recycle()
+        composedPreview = null
+        if (mode != WallpaperMode.CROP) {
+            val outWidth = minOf(targetWidth, 720).coerceAtLeast(1)
+            val outHeight = (outWidth.toFloat() * targetHeight / targetWidth).roundToInt().coerceAtLeast(1)
+            val previewContent = contentRect.scaleRect(spec.imageWidth, spec.imageHeight, bitmap.width, bitmap.height)
+            composedPreview = withContext(Dispatchers.Default) {
+                WallpaperComposer.compose(
+                    bitmap, outWidth, outHeight, mode, previewContent, fitBackgroundColor,
+                )
+            }
+        }
+    }
+    val composedImage = remember(composedPreview) { composedPreview?.asImageBitmap() }
     var boxSizePx by remember { mutableStateOf(IntSize.Zero) }
 
     // Escala píxeles de imagen -> píxeles de la vista previa
     val scale = if (boxSizePx.width > 0) boxSizePx.width.toFloat() / spec.imageWidth else 1f
 
-    val ratio = spec.imageWidth.toFloat() / spec.imageHeight
+    val ratio = if (mode == WallpaperMode.CROP) {
+        spec.imageWidth.toFloat() / spec.imageHeight
+    } else {
+        targetWidth.toFloat() / targetHeight
+    }
     // La caja SIEMPRE mantiene la proporción exacta de la imagen:
     // - horizontal: ancho completo, alto derivado
     // - vertical: alto limitado (520.dp) y ancho derivado (matchHeightConstraintsFirst)
@@ -318,24 +532,32 @@ private fun PreviewCard(
                 // La clave es `spec` (estable): el lambda lee el estado vivo
                 // (boxSizePx) a través del delegado en cada gesto, así la escala
                 // es siempre la actual y el gesto no se reinicia en cada frame.
-                .pointerInput(spec) {
-                    if (spec.cropRect == null) return@pointerInput
-                    detectDragGestures { change, dragAmount ->
-                        change.consume()
-                        val currentWidth = boxSizePx.width
-                        if (currentWidth > 0) {
-                            val liveScale = spec.imageWidth.toFloat() / currentWidth
-                            onMove(dragAmount.x * liveScale, dragAmount.y * liveScale)
+                .pointerInput(spec, mode) {
+                    if (mode == WallpaperMode.CROP && spec.cropRect != null) {
+                        detectDragGestures { change, dragAmount ->
+                            change.consume()
+                            val currentWidth = boxSizePx.width
+                            if (currentWidth > 0) {
+                                val liveScale = spec.imageWidth.toFloat() / currentWidth
+                                onMove(dragAmount.x * liveScale, dragAmount.y * liveScale)
+                            }
                         }
                     }
                 },
         ) {
-            Image(
-                bitmap = imageBitmap,
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-            )
-            if (cropRect != null && scale > 0f) {
+            if (mode == WallpaperMode.CROP) {
+                Image(bitmap = imageBitmap, contentDescription = null, modifier = Modifier.fillMaxSize())
+            } else if (composedImage != null) {
+                Image(
+                    bitmap = composedImage,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Fit,
+                )
+            } else {
+                CircularProgressIndicator(Modifier.align(Alignment.Center))
+            }
+            if (mode == WallpaperMode.CROP && cropRect != null && scale > 0f) {
                 Canvas(Modifier.fillMaxSize()) {
                     val left = cropRect.left * scale
                     val top = cropRect.top * scale
@@ -365,7 +587,9 @@ private fun PreviewCard(
         }
         Spacer(Modifier.height(6.dp))
         Text(
-            text = if (cropRect != null) {
+            text = if (mode != WallpaperMode.CROP) {
+                stringResource(R.string.preview_composite)
+            } else if (cropRect != null) {
                 stringResource(R.string.crop_hint)
             } else {
                 stringResource(R.string.crop_full_image)
@@ -382,6 +606,7 @@ private fun QualityPanel(
     screen: ScreenInfo?,
     spec: CropSpec?,
     cropRect: RectI?,
+    mode: WallpaperMode,
 ) {
     if (info == null || screen == null || spec == null) return
     val mono = FontFamily.Monospace
@@ -401,6 +626,17 @@ private fun QualityPanel(
             QualityRow(stringResource(R.string.quality_image), "${info.width}×${info.height} · ${info.formatLabel}", mono)
             QualityRow(stringResource(R.string.quality_screen), "${screen.screenWidth}×${screen.screenHeight}", mono)
             QualityRow(stringResource(R.string.quality_desired), "${screen.desiredWidth}×${screen.desiredHeight}", mono)
+            if (mode != WallpaperMode.CROP) {
+                Spacer(Modifier.height(10.dp))
+                QualityBanner(
+                    backgroundColor = Color(0xFF1B2740),
+                    borderColor = Color(0xFF3D5480),
+                    textColor = Color(0xFFA8C4F0),
+                    title = stringResource(R.string.quality_effect_title),
+                    body = stringResource(R.string.quality_effect_body),
+                )
+                return@Column
+            }
             QualityRow(
                 stringResource(R.string.quality_crop),
                 if (cropRect != null) {

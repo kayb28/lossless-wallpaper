@@ -1,21 +1,41 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Wallpaper Sin Pérdida</string>
-    <string name="tagline">Aplica el archivo original, sin recomprimir ni reescalar</string>
+    <string name="tagline">Recorta el original o crea una composición para tu pantalla</string>
 
     <!-- Estado vacío -->
     <string name="empty_title">Elige una imagen de tu galería</string>
-    <string name="empty_body">PNG, WebP o JPG tal como están. La imagen se envía al sistema byte a byte, sin pasar por Bitmap ni recompresión.</string>
+    <string name="empty_body">El original nunca se modifica. Recortar lo envía byte a byte; los efectos generan una copia temporal al aplicar.</string>
     <string name="choose_image">Elegir imagen</string>
     <string name="change_image">Cambiar imagen</string>
 
     <!-- Vista previa -->
     <string name="crop_hint">Arrastra para mover la zona del recorte (proporción exacta de la pantalla)</string>
     <string name="crop_full_image">La imagen completa coincide con la proporción de la pantalla: no se recorta nada</string>
-    <string name="preview_note">Nota: la vista previa usa una copia reducida solo para pantalla. El fondo se aplica siempre con el archivo original.</string>
+    <string name="preview_note_crop">Recortar conserva el archivo original y envía sus bytes al sistema con una indicación de recorte.</string>
+    <string name="preview_note_effect">Al aplicar un efecto se genera y elimina una copia PNG temporal; el archivo de galería permanece intacto.</string>
+    <string name="preview_composite">Vista previa de la composición temporal; el original permanece intacto.</string>
+    <string name="mode_title">Modo de ajuste</string>
+    <string name="mode_crop">Recortar</string>
+    <string name="mode_fit">Ajustar</string>
+    <string name="mode_auto_color">Color automático</string>
+    <string name="mode_black">Negro</string>
+    <string name="mode_blur">Desenfoque</string>
+    <string name="mode_extend_edges">Extender bordes</string>
+    <string name="auto_margins">Detectar márgenes automáticamente</string>
+    <string name="margins_found">Se detectaron bandas uniformes y simétricas.</string>
+    <string name="margins_not_found">No se detectaron márgenes con suficiente confianza.</string>
+    <string name="sensitivity">Sensibilidad</string>
+    <string name="color_charcoal">Carbón</string>
+    <string name="color_slate">Pizarra</string>
+    <string name="color_white">Blanco</string>
+    <string name="background_color">Color de fondo</string>
+    <string name="margins_disabled">Detección desactivada.</string>
 
     <!-- Panel de calidad -->
     <string name="quality_title">Indicador de calidad</string>
+    <string name="quality_effect_title">Original intacto</string>
+    <string name="quality_effect_body">Este modo aplica una composición PNG temporal. No modifica la imagen elegida; el fondo puede redimensionarse al tamaño del sistema.</string>
     <string name="quality_image">Imagen</string>
     <string name="quality_screen">Pantalla real</string>
     <string name="quality_desired">Mínimo del sistema</string>
@@ -35,7 +55,9 @@
 
     <!-- Acción -->
     <string name="apply">Aplicar fondo</string>
-    <string name="applied_ok">Fondo aplicado con el archivo original ✓</string>
+    <string name="applied_ok">Fondo aplicado ✓</string>
+    <string name="applied_original_ok">Fondo aplicado con el original byte a byte ✓</string>
+    <string name="applied_composite_ok">Fondo aplicado desde una composición temporal; original intacto ✓</string>
     <string name="applied_fail">No se pudo aplicar: %1$s</string>
     <string name="err_decode">No se pudo leer la imagen (formato no soportado)</string>
 </resources>

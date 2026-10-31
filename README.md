@@ -1,11 +1,13 @@
 # Wallpaper Sin Pérdida
 
-App Android que aplica wallpapers **usando el archivo original de la imagen, sin recomprimirlo ni reescalarlo**.
+App Android que conserva intacto el archivo de galería: Recortar aplica sus bytes originales; los modos de composición generan una copia temporal al aplicar.
 
 ## Qué hace
 
 - Eliges una imagen de la galería (Photo Picker del sistema, sin permisos de almacenamiento).
 - Ves la vista previa con el **recorte exacto a la proporción de tu pantalla** (arrastrable).
+- Eliges Recortar, Ajustar, Color automático, Negro, Desenfoque o Extender bordes.
+- Detecta opcionalmente bandas uniformes y simétricas; puedes desactivar la detección o ajustar su sensibilidad.
 - Un indicador de calidad compara la resolución de la imagen con la de la pantalla real y con el mínimo que pide el sistema (`getDesiredMinimumWidth/Height`). Si la imagen es menor, lo avisa claramente — **nunca hace upscale a escondidas**.
 - Aplicas a pantalla de inicio, de bloqueo o ambas (`FLAG_SYSTEM` / `FLAG_LOCK`).
 
@@ -15,9 +17,9 @@ App Android que aplica wallpapers **usando el archivo original de la imagen, sin
 ContentResolver.openInputStream(uri)  →  WallpaperManager.setStream(...)
 ```
 
-La imagen **no pasa por ningún `Bitmap`** ni se recompime a JPEG: los bytes del archivo original (PNG, WebP o JPG tal cual están) van directo al sistema. Para leer la resolución solo se decodifican las cabeceras (`inJustDecodeBounds`), que no toca ningún píxel. La vista previa usa una copia reducida exclusivamente visual; el fondo se aplica siempre con el original.
+En modo **Recortar**, la imagen no pasa por ningún `Bitmap` ni se recomprime: los bytes originales van directo a `WallpaperManager.setStream(...)`. En los otros modos se genera un PNG temporal para aplicar la composición; se borra al terminar y el archivo de galería nunca se modifica.
 
-Si hay que recortar, se comunica un `visibleCropHint` con la proporción exacta de la pantalla: recortar no recompime, el sistema toma esa zona del archivo original. *Nota: algunos launchers ignoran `visibleCropHint` y recortan a su manera; en los launchers de serie (Pixel, One UI, MIUI reciente) se respeta.*
+Si hay que recortar, se comunica un `visibleCropHint` con la proporción exacta de la pantalla. *Nota: algunos launchers ignoran `visibleCropHint` y recortan a su manera; en los launchers de serie (Pixel, One UI, MIUI reciente) suele respetarse.*
 
 ### Permisos
 
