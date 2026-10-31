@@ -34,7 +34,8 @@ class CropCalculatorTest {
     @Test
     fun `imagen mas ancha recorta a lo ancho con alto completo`() {
         val spec = CropCalculator.computeCrop(4000, 2400, targetW, targetH)
-        val rect = assertNotNull(spec.cropRect)
+        assertNotNull(spec.cropRect)
+        val rect = spec.cropRect!!
         assertEquals(2400, rect.height)
         // w = round(2400 * (1080/2400)) = 1080
         assertEquals(1080, rect.width)
@@ -49,7 +50,8 @@ class CropCalculatorTest {
     @Test
     fun `imagen mas alta recorta a lo alto con ancho completo`() {
         val spec = CropCalculator.computeCrop(1080, 4000, targetW, targetH)
-        val rect = assertNotNull(spec.cropRect)
+        assertNotNull(spec.cropRect)
+        val rect = spec.cropRect!!
         assertEquals(1080, rect.width)
         // h = round(1080 / (1080/2400)) = 2400
         assertEquals(2400, rect.height)
@@ -60,7 +62,8 @@ class CropCalculatorTest {
     @Test
     fun `imagen pequenia en ambos ejes marca upscale y mantiene proporcion`() {
         val spec = CropCalculator.computeCrop(800, 1600, targetW, targetH)
-        val rect = assertNotNull(spec.cropRect)
+        assertNotNull(spec.cropRect)
+        val rect = spec.cropRect!!
         // ratio imagen 0.5 > ratio objetivo 0.45 -> recorte horizontal
         assertEquals(1600, rect.height)
         assertEquals(720, rect.width)
@@ -118,7 +121,8 @@ class CropCalculatorTest {
     @Test
     fun `recorte cuadrado en pantalla cuadrada`() {
         val spec = CropCalculator.computeCrop(2000, 3000, 1000, 1000)
-        val rect = assertNotNull(spec.cropRect)
+        assertNotNull(spec.cropRect)
+        val rect = spec.cropRect!!
         assertEquals(2000, rect.width)
         assertEquals(2000, rect.height)
         assertEquals(500, rect.top)
