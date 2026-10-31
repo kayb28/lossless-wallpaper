@@ -20,7 +20,9 @@ class CropCalculatorTest {
         val spec = CropCalculator.computeCrop(2160, 4800, targetW, targetH)
         assertNull(spec.cropRect)
         assertFalse(spec.needsUpscale)
-        assertEquals(1.0f, spec.systemScale, 0.001f)
+        // La imagen es el doble de grande que la pantalla: el sistema la reduce
+        // a la mitad (0.5x). Reducir NO es pérdida de calidad; solo el upscale avisa.
+        assertEquals(0.5f, spec.systemScale, 0.001f)
     }
 
     @Test
@@ -126,6 +128,7 @@ class CropCalculatorTest {
         assertEquals(2000, rect.width)
         assertEquals(2000, rect.height)
         assertEquals(500, rect.top)
-        assertEquals(3000, rect.bottom)
+        // bottom = top + height = 500 + 2000 (recorte centrado, no llega al borde inferior)
+        assertEquals(2500, rect.bottom)
     }
 }
