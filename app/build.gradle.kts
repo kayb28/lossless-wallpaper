@@ -17,8 +17,10 @@ val hasReleaseSigning = !keystoreFile.isNullOrEmpty() &&
 
 android {
     namespace = "com.kayb28.losslesswallpaper"
+    // compileSdk 37.2: exigido por material3 1.5.0-beta02 del Compose BOM 2026.10.01
+    // (mismo combo de versiones que usa Mihon en su CI).
     compileSdk {
-        version = release(36)
+        version = release(37) { minorApiLevel = 2 }
     }
 
     defaultConfig {
