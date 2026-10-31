@@ -18,7 +18,7 @@
     <string name="mode_title">Modo de ajuste</string>
     <string name="mode_crop">Recortar</string>
     <string name="mode_fit">Ajustar</string>
-    <string name="mode_auto_color">Color automático</string>
+    <string name="mode_auto_color">Fondo continuo</string>
     <string name="mode_black">Negro</string>
     <string name="mode_blur">Desenfoque</string>
     <string name="mode_extend_edges">Extender bordes</string>

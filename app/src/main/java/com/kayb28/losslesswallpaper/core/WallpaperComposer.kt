@@ -3,11 +3,12 @@ package com.kayb28.losslesswallpaper.core
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
-import android.graphics.LinearGradient
 import android.graphics.Paint
+import android.graphics.PorterDuff
+import android.graphics.PorterDuffXfermode
 import android.graphics.Rect
 import android.graphics.RectF
-import android.graphics.Shader
+import java.nio.ByteBuffer
 import kotlin.math.max
 import kotlin.math.min
 
@@ -41,15 +42,15 @@ object WallpaperComposer {
                 drawContained(canvas, content, full, paint)
             }
             WallpaperMode.AUTO_COLOR -> {
-                drawEdgeGradient(canvas, content, full, paint)
-                drawContained(canvas, content, full, paint)
+                drawBlurBackground(canvas, content, full, paint, radius = 7, shade = 0x12000000)
+                drawContainedFeathered(canvas, content, full, paint)
             }
             WallpaperMode.BLACK -> {
                 canvas.drawColor(Color.BLACK)
                 drawContained(canvas, content, full, paint)
             }
             WallpaperMode.BLUR -> {
-                drawBlurBackground(canvas, content, full, paint)
+                drawBlurBackground(canvas, content, full, paint, radius = 9, shade = 0x44000000)
                 drawContained(canvas, content, full, paint)
             }
             WallpaperMode.EXTEND_EDGES -> {
@@ -62,12 +63,53 @@ object WallpaperComposer {
     }
 
     private fun drawContained(canvas: Canvas, bitmap: Bitmap, target: RectF, paint: Paint) {
+        canvas.drawBitmap(bitmap, null, containedRect(bitmap, target), paint)
+    }
+
+    private fun containedRect(bitmap: Bitmap, target: RectF): RectF {
         val scale = min(1f, min(target.width() / bitmap.width, target.height() / bitmap.height))
         val width = bitmap.width * scale
         val height = bitmap.height * scale
         val left = target.centerX() - width / 2f
         val top = target.centerY() - height / 2f
-        canvas.drawBitmap(bitmap, null, RectF(left, top, left + width, top + height), paint)
+        return RectF(left, top, left + width, top + height)
+    }
+
+    /** Feather the foreground's alpha into the matching blurred image behind it. */
+    private fun drawContainedFeathered(canvas: Canvas, bitmap: Bitmap, target: RectF, paint: Paint) {
+        val destination = containedRect(bitmap, target)
+        val mask = makeFeatherMask(bitmap.width.toFloat() / bitmap.height)
+        val checkpoint = canvas.saveLayer(destination, null)
+        try {
+            canvas.drawBitmap(bitmap, null, destination, paint)
+            val maskPaint = Paint(Paint.FILTER_BITMAP_FLAG).apply {
+                xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_IN)
+            }
+            canvas.drawBitmap(mask, null, destination, maskPaint)
+        } finally {
+            canvas.restoreToCount(checkpoint)
+            mask.recycle()
+        }
+    }
+
+    private fun makeFeatherMask(aspect: Float): Bitmap {
+        val longest = 512
+        val width = if (aspect >= 1f) longest else ((longest * aspect).toInt().coerceIn(96, longest) / 4) * 4
+        val height = if (aspect >= 1f) ((longest / aspect).toInt().coerceIn(96, longest) / 4) * 4 else longest
+        val pixels = ByteArray(width * height)
+        val featherX = width * 0.055f
+        val featherY = height * 0.055f
+        for (y in 0 until height) for (x in 0 until width) {
+            val edge = min(
+                min(x + 0.5f, width - x - 0.5f) / featherX,
+                min(y + 0.5f, height - y - 0.5f) / featherY,
+            ).coerceIn(0f, 1f)
+            val smooth = edge * edge * (3f - 2f * edge)
+            pixels[y * width + x] = (smooth * 255).toInt().toByte()
+        }
+        return Bitmap.createBitmap(width, height, Bitmap.Config.ALPHA_8).apply {
+            copyPixelsFromBuffer(ByteBuffer.wrap(pixels))
+        }
     }
 
     private fun drawCenterCrop(canvas: Canvas, bitmap: Bitmap, target: RectF, paint: Paint) {
@@ -84,71 +126,18 @@ object WallpaperComposer {
         )
     }
 
-    private fun drawEdgeGradient(canvas: Canvas, bitmap: Bitmap, target: RectF, paint: Paint) {
-        val colors = intArrayOf(
-            averageEdge(bitmap, top = true),
-            averageEdge(bitmap, left = true),
-            averageEdge(bitmap, top = false),
-            averageEdge(bitmap, left = false),
-        )
-        paint.shader = LinearGradient(
-            0f,
-            0f,
-            target.width(),
-            target.height(),
-            colors,
-            floatArrayOf(0f, 0.35f, 0.7f, 1f),
-            Shader.TileMode.CLAMP,
-        )
-        canvas.drawRect(target, paint)
-        paint.shader = null
-    }
-
-    private fun averageEdge(bitmap: Bitmap, top: Boolean? = null, left: Boolean? = null): Int {
-        val horizontal = top != null
-        val length = if (horizontal) bitmap.width else bitmap.height
-        val thickness = (min(bitmap.width, bitmap.height) * 0.04f).toInt().coerceAtLeast(1)
-        val step = (length / 256).coerceAtLeast(1)
-        var red = 0L
-        var green = 0L
-        var blue = 0L
-        var count = 0
-        var i = 0
-        while (i < length) {
-            for (band in 0 until thickness) {
-                val x = when {
-                    horizontal -> i
-                    left == true -> band
-                    else -> bitmap.width - 1 - band
-                }
-                val y = when {
-                    horizontal && top == true -> band
-                    horizontal -> bitmap.height - 1 - band
-                    left == true -> i
-                    else -> i
-                }
-                val color = bitmap.getPixel(x, y)
-                red += Color.red(color)
-                green += Color.green(color)
-                blue += Color.blue(color)
-                count++
-            }
-            i += step
-        }
-        return Color.rgb((red / count).toInt(), (green / count).toInt(), (blue / count).toInt())
-    }
-
-    private fun drawBlurBackground(canvas: Canvas, bitmap: Bitmap, target: RectF, paint: Paint) {
-        val thumbWidth = 96
-        val thumbHeight = 160
+    private fun drawBlurBackground(canvas: Canvas, bitmap: Bitmap, target: RectF, paint: Paint, radius: Int, shade: Int) {
+        val aspect = target.width() / target.height()
+        val thumbWidth = if (aspect >= 1f) 256 else (256 * aspect).toInt().coerceAtLeast(64)
+        val thumbHeight = if (aspect >= 1f) (256 / aspect).toInt().coerceAtLeast(64) else 256
         val thumbnail = Bitmap.createBitmap(thumbWidth, thumbHeight, Bitmap.Config.ARGB_8888)
         drawCenterCrop(Canvas(thumbnail), bitmap, RectF(0f, 0f, thumbWidth.toFloat(), thumbHeight.toFloat()), paint)
         val pixels = IntArray(thumbWidth * thumbHeight)
         thumbnail.getPixels(pixels, 0, thumbWidth, 0, 0, thumbWidth, thumbHeight)
-        boxBlur(pixels, thumbWidth, thumbHeight, radius = 9)
+        boxBlur(pixels, thumbWidth, thumbHeight, radius)
         thumbnail.setPixels(pixels, 0, thumbWidth, 0, 0, thumbWidth, thumbHeight)
         canvas.drawBitmap(thumbnail, null, target, paint)
-        canvas.drawColor(0x33000000)
+        if (Color.alpha(shade) > 0) canvas.drawColor(shade)
         thumbnail.recycle()
     }
 
@@ -166,7 +155,6 @@ object WallpaperComposer {
             }
             pixels[y * width + x] = Color.rgb(red / count, green / count, blue / count)
         }
-        source.indices.forEach { source[it] = pixels[it] }
         val horizontal = pixels.copyOf()
         for (y in 0 until height) for (x in 0 until width) {
             var red = 0
