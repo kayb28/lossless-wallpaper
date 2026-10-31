@@ -132,11 +132,12 @@ fun WallpaperApp() {
         }
     }
 
-    val activeCrop = remember(spec, cropCenter) {
+    val center = cropCenter
+    val activeCrop = remember(spec, center) {
         when {
             spec?.cropRect == null -> spec?.cropRect
-            cropCenter == null -> spec.cropRect
-            else -> CropCalculator.movedCrop(spec, cropCenter.x, cropCenter.y)
+            center == null -> spec.cropRect
+            else -> CropCalculator.movedCrop(spec, center.x, center.y)
         }
     }
 
@@ -165,7 +166,14 @@ fun WallpaperApp() {
             )
             Spacer(Modifier.height(16.dp))
 
-            if (uri == null || preview == null || spec == null) {
+            // Copias locales: permiten smart cast a no-nulo sin depender de
+            // propiedades delegadas (mutableStateOf), que Kotlin no puede
+            // smart-castear de forma segura.
+            val currentPreview = preview
+            val currentSpec = spec
+            val currentUri = uri
+
+            if (currentUri == null || currentPreview == null || currentSpec == null) {
                 EmptyState(
                     modifier = Modifier.fillMaxWidth(),
                     onPick = {
@@ -174,26 +182,25 @@ fun WallpaperApp() {
                 )
             } else {
                 PreviewCard(
-                    bitmap = preview,
-                    spec = spec,
+                    bitmap = currentPreview,
+                    spec = currentSpec,
                     cropRect = activeCrop,
                     onMove = { dx, dy ->
                         val base = cropCenter ?: Offset(
-                            spec.cropRect?.centerX ?: 0f,
-                            spec.cropRect?.centerY ?: 0f,
+                            currentSpec.cropRect?.centerX ?: 0f,
+                            currentSpec.cropRect?.centerY ?: 0f,
                         )
                         cropCenter = Offset(base.x + dx, base.y + dy)
                     },
                 )
                 Spacer(Modifier.height(12.dp))
-                QualityPanel(info = info, screen = screen, spec = spec, cropRect = activeCrop)
+                QualityPanel(info = info, screen = screen, spec = currentSpec, cropRect = activeCrop)
                 Spacer(Modifier.height(12.dp))
                 TargetSelector(selected = target, onSelect = { target = it })
                 Spacer(Modifier.height(16.dp))
 
                 Button(
                     onClick = {
-                        val currentUri = uri ?: return@Button
                         scope.launch {
                             applying = true
                             val result = WallpaperApplier.apply(context, currentUri, activeCrop, target)
@@ -307,13 +314,17 @@ private fun PreviewCard(
                 .background(Color(0xFF171B21))
                 .onSizeChanged { boxSizePx = it }
                 // La clave es `spec` (estable): el lambda lee el estado vivo
-                // (cropCenter, boxSizePx) a través de delegados, así el gesto
-                // no se reinicia en cada frame de arrastre.
+                // (boxSizePx) a través del delegado en cada gesto, así la escala
+                // es siempre la actual y el gesto no se reinicia en cada frame.
                 .pointerInput(spec) {
                     if (spec.cropRect == null) return@pointerInput
                     detectDragGestures { change, dragAmount ->
                         change.consume()
-                        onMove(dragAmount.x / scale, dragAmount.y / scale)
+                        val currentWidth = boxSizePx.width
+                        if (currentWidth > 0) {
+                            val liveScale = spec.imageWidth.toFloat() / currentWidth
+                            onMove(dragAmount.x * liveScale, dragAmount.y * liveScale)
+                        }
                     }
                 },
         ) {
