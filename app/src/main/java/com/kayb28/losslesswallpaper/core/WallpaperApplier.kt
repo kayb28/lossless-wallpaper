@@ -3,7 +3,6 @@ package com.kayb28.losslesswallpaper.core
 import android.app.WallpaperManager
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.Color
 import android.graphics.Rect
 import android.net.Uri
 import kotlinx.coroutines.Dispatchers
@@ -31,7 +30,6 @@ object WallpaperApplier {
         targetHeight: Int = 0,
         sourceWidth: Int = 0,
         sourceHeight: Int = 0,
-        fitBackgroundColor: Int = Color.rgb(18, 20, 24),
     ): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching {
             val manager = WallpaperManager.getInstance(context)
@@ -58,7 +56,6 @@ object WallpaperApplier {
                         targetHeight = outputHeight,
                         mode = mode,
                         contentRect = scaledCrop,
-                        fitBackgroundColor = fitBackgroundColor,
                     )
                     val temporaryFile = File.createTempFile("wallpaper-composite-", ".png", context.cacheDir)
                     try {

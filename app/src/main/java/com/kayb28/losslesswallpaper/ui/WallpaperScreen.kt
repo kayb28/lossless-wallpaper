@@ -84,6 +84,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 @Composable
@@ -102,7 +103,6 @@ fun WallpaperApp() {
     var autoDetectMargins by remember { mutableStateOf(true) }
     var detectionSensitivity by remember { mutableStateOf(0.5f) }
     var detectedMargins by remember { mutableStateOf<RectI?>(null) }
-    var fitBackgroundColor by remember { mutableStateOf(0xFF121418.toInt()) }
     var applying by remember { mutableStateOf(false) }
     var reloadKey by remember { mutableStateOf(0, neverEqualPolicy()) }
 
@@ -243,6 +243,11 @@ fun WallpaperApp() {
                     },
                 )
             } else {
+                val compositionArea = if (mode == WallpaperMode.FIT) {
+                    RectI(0, 0, currentInfo.width, currentInfo.height)
+                } else {
+                    currentContentBounds
+                }
                 PreviewCard(
                     bitmap = currentPreview,
                     spec = currentSpec,
@@ -250,8 +255,7 @@ fun WallpaperApp() {
                     mode = mode,
                     targetWidth = currentScreen.screenWidth,
                     targetHeight = currentScreen.screenHeight,
-                    contentRect = currentContentBounds,
-                    fitBackgroundColor = fitBackgroundColor,
+                    contentRect = compositionArea,
                     onMove = { dx, dy ->
                         val bounds = activeCrop ?: currentContentBounds
                         val base = cropCenter ?: Offset(bounds.centerX, bounds.centerY)
@@ -260,18 +264,16 @@ fun WallpaperApp() {
                 )
                 Spacer(Modifier.height(12.dp))
                 ModeSelector(selected = mode, onSelect = { mode = it })
-                if (mode == WallpaperMode.FIT) {
+                if (mode != WallpaperMode.FIT) {
                     Spacer(Modifier.height(8.dp))
-                    BackgroundColorSelector(selected = fitBackgroundColor, onSelect = { fitBackgroundColor = it })
+                    AutoMarginControls(
+                        enabled = autoDetectMargins,
+                        sensitivity = detectionSensitivity,
+                        hasDetected = detectedMargins != null,
+                        onEnabledChange = { autoDetectMargins = it },
+                        onSensitivityChange = { detectionSensitivity = it },
+                    )
                 }
-                Spacer(Modifier.height(8.dp))
-                AutoMarginControls(
-                    enabled = autoDetectMargins,
-                    sensitivity = detectionSensitivity,
-                    hasDetected = detectedMargins != null,
-                    onEnabledChange = { autoDetectMargins = it },
-                    onSensitivityChange = { detectionSensitivity = it },
-                )
                 Spacer(Modifier.height(12.dp))
                 QualityPanel(
                     info = currentInfo,
@@ -279,7 +281,7 @@ fun WallpaperApp() {
                     spec = currentSpec,
                     cropRect = activeCrop,
                     mode = mode,
-                    fitArea = currentContentBounds,
+                    fitArea = compositionArea,
                 )
                 Spacer(Modifier.height(12.dp))
                 TargetSelector(selected = target, onSelect = { target = it })
@@ -289,7 +291,7 @@ fun WallpaperApp() {
                     onClick = {
                         scope.launch {
                             applying = true
-                            val sourceArea = if (mode == WallpaperMode.CROP) activeCrop else currentContentBounds
+                            val sourceArea = if (mode == WallpaperMode.CROP) activeCrop else compositionArea
                             val result = WallpaperApplier.apply(
                                 context = context,
                                 uri = currentUri,
@@ -300,7 +302,6 @@ fun WallpaperApp() {
                                 targetHeight = currentScreen.screenHeight,
                                 sourceWidth = currentInfo.width,
                                 sourceHeight = currentInfo.height,
-                                fitBackgroundColor = fitBackgroundColor,
                             )
                             applying = false
                             val message = if (result.isSuccess) {
@@ -404,26 +405,6 @@ private fun ModeSelector(selected: WallpaperMode, onSelect: (WallpaperMode) -> U
 }
 
 @Composable
-private fun BackgroundColorSelector(selected: Int, onSelect: (Int) -> Unit) {
-    Column {
-        Text(stringResource(R.string.background_color), style = MaterialTheme.typography.labelMedium)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf(
-                0xFF121418.toInt() to R.string.color_charcoal,
-                0xFF53616B.toInt() to R.string.color_slate,
-                0xFFF2F2F2.toInt() to R.string.color_white,
-            ).forEach { (color, label) ->
-                FilterChip(
-                    selected = selected == color,
-                    onClick = { onSelect(color) },
-                    label = { Text(stringResource(label)) },
-                )
-            }
-        }
-    }
-}
-
-@Composable
 private fun AutoMarginControls(
     enabled: Boolean,
     sensitivity: Float,
@@ -489,14 +470,13 @@ private fun PreviewCard(
     targetWidth: Int,
     targetHeight: Int,
     contentRect: RectI,
-    fitBackgroundColor: Int,
     onMove: (Float, Float) -> Unit,
 ) {
     // `Bitmap` no expone `id`; remember(bitmaps) compara por identidad (Bitmap no
     // sobrescribe equals), así que un nuevo decodificado => nuevo ImageBitmap.
     val imageBitmap = remember(bitmap) { bitmap.asImageBitmap() }
     var composedPreview by remember { mutableStateOf<Bitmap?>(null) }
-    LaunchedEffect(bitmap, mode, targetWidth, targetHeight, contentRect, fitBackgroundColor) {
+    LaunchedEffect(bitmap, mode, targetWidth, targetHeight, contentRect) {
         composedPreview?.recycle()
         composedPreview = null
         if (mode != WallpaperMode.CROP) {
@@ -505,7 +485,7 @@ private fun PreviewCard(
             val previewContent = contentRect.scaleRect(spec.imageWidth, spec.imageHeight, bitmap.width, bitmap.height)
             composedPreview = withContext(Dispatchers.Default) {
                 WallpaperComposer.compose(
-                    bitmap, outWidth, outHeight, mode, previewContent, fitBackgroundColor,
+                    bitmap, outWidth, outHeight, mode, previewContent,
                 )
             }
         }
@@ -594,7 +574,9 @@ private fun PreviewCard(
         }
         Spacer(Modifier.height(6.dp))
         Text(
-            text = if (mode != WallpaperMode.CROP) {
+            text = if (mode == WallpaperMode.FIT) {
+                stringResource(R.string.preview_fit_stretch)
+            } else if (mode != WallpaperMode.CROP) {
                 stringResource(R.string.preview_composite)
             } else if (cropRect != null) {
                 stringResource(R.string.crop_hint)
@@ -641,12 +623,31 @@ private fun QualityPanel(
                     borderColor = Color(0xFF3D5480),
                     textColor = Color(0xFFA8C4F0),
                     title = stringResource(R.string.quality_effect_title),
-                    body = stringResource(R.string.quality_effect_body),
+                    body = stringResource(
+                        if (mode == WallpaperMode.FIT) R.string.quality_fit_body else R.string.quality_effect_body,
+                    ),
                 )
-                val fitScale = minOf(
-                    screen.screenWidth.toFloat() / fitArea.width,
-                    screen.screenHeight.toFloat() / fitArea.height,
-                )
+                val widthScale = screen.screenWidth.toFloat() / fitArea.width
+                val heightScale = screen.screenHeight.toFloat() / fitArea.height
+                val fitScale = if (mode == WallpaperMode.FIT) maxOf(widthScale, heightScale) else minOf(widthScale, heightScale)
+                if (mode == WallpaperMode.FIT) {
+                    val sourceAspect = fitArea.width.toFloat() / fitArea.height
+                    val screenAspect = screen.screenWidth.toFloat() / screen.screenHeight
+                    val aspectChange = abs(screenAspect / sourceAspect - 1f) * 100f
+                    if (aspectChange >= 2f) {
+                        Spacer(Modifier.height(8.dp))
+                        QualityBanner(
+                            backgroundColor = Color(0xFF3B2F14),
+                            borderColor = Color(0xFF8A6D2F),
+                            textColor = Color(0xFFE8C97A),
+                            title = stringResource(R.string.quality_fit_stretch_title),
+                            body = stringResource(
+                                R.string.quality_fit_stretch_body,
+                                String.format(Locale.US, "%.0f%%", aspectChange),
+                            ),
+                        )
+                    }
+                }
                 if (fitScale > 1f) {
                     Spacer(Modifier.height(8.dp))
                     QualityBanner(

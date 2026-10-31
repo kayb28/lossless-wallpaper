@@ -20,7 +20,6 @@ object WallpaperComposer {
         targetHeight: Int,
         mode: WallpaperMode,
         contentRect: RectI? = null,
-        fitBackgroundColor: Int = Color.rgb(18, 20, 24),
     ): Bitmap {
         require(targetWidth > 0 && targetHeight > 0)
         val bounds = contentRect?.clamped(source.width, source.height)
@@ -37,10 +36,7 @@ object WallpaperComposer {
 
         when (mode) {
             WallpaperMode.CROP -> drawCenterCrop(canvas, content, full, paint)
-            WallpaperMode.FIT -> {
-                canvas.drawColor(fitBackgroundColor)
-                drawContained(canvas, content, full, paint)
-            }
+            WallpaperMode.FIT -> canvas.drawBitmap(content, null, full, paint)
             WallpaperMode.AUTO_COLOR -> {
                 drawBlurBackground(canvas, content, full, paint, radius = 7, shade = 0x12000000)
                 drawContainedFeathered(canvas, content, full, paint)

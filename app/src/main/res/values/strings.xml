@@ -15,9 +15,10 @@
     <string name="preview_note_crop">Recortar conserva el archivo original y envía sus bytes al sistema con una indicación de recorte.</string>
     <string name="preview_note_effect">Al aplicar un efecto se genera y elimina una copia PNG temporal; el archivo de galería permanece intacto.</string>
     <string name="preview_composite">Vista previa de la composición temporal; el original permanece intacto.</string>
+    <string name="preview_fit_stretch">Vista previa exacta: imagen completa, sin recorte y ajustada a la pantalla.</string>
     <string name="mode_title">Modo de ajuste</string>
     <string name="mode_crop">Recortar</string>
-    <string name="mode_fit">Ajustar</string>
+    <string name="mode_fit">Ajustar sin recortar</string>
     <string name="mode_auto_color">Fondo continuo</string>
     <string name="mode_black">Negro</string>
     <string name="mode_blur">Desenfoque</string>
@@ -26,16 +27,15 @@
     <string name="margins_found">Se detectaron bandas uniformes y simétricas.</string>
     <string name="margins_not_found">No se detectaron márgenes con suficiente confianza.</string>
     <string name="sensitivity">Sensibilidad</string>
-    <string name="color_charcoal">Carbón</string>
-    <string name="color_slate">Pizarra</string>
-    <string name="color_white">Blanco</string>
-    <string name="background_color">Color de fondo</string>
     <string name="margins_disabled">Detección desactivada.</string>
 
     <!-- Panel de calidad -->
     <string name="quality_title">Indicador de calidad</string>
     <string name="quality_effect_title">Original intacto</string>
-    <string name="quality_effect_body">El original no se modifica. La imagen completa se ajusta proporcionalmente a la pantalla real; el espacio sobrante lo rellena el fondo elegido.</string>
+    <string name="quality_effect_body">El original no se modifica. Los demás efectos conservan la proporción y completan el espacio con el fondo del modo elegido.</string>
+    <string name="quality_fit_body">Se muestra la imagen completa ocupando la pantalla; puede estirarse o comprimirse un poco, sin recortarla. Revisa la vista previa.</string>
+    <string name="quality_fit_stretch_title">Ajuste sin recorte</string>
+    <string name="quality_fit_stretch_body">Para llenar la pantalla, la proporción cambiará aprox. %1$s. La vista previa muestra exactamente el resultado.</string>
     <string name="quality_effect_upscale_title">La composición ampliará la imagen</string>
     <string name="quality_effect_upscale_body">Se ampliará %1$s para caber en la pantalla. Puede suavizar algunos detalles; el original queda intacto.</string>
     <string name="quality_image">Imagen</string>
