@@ -62,7 +62,7 @@ object CropCalculator {
             }
             imageRatio > targetRatio -> {
                 // Imagen más ancha: recorte vertical completo, ancho a proporción exacta.
-                var w = kotlin.math.round(imageHeight * targetRatio)
+                var w = kotlin.math.round(imageHeight * targetRatio).toInt()
                 if (w > imageWidth) w = imageWidth
                 if (w < 1) w = 1
                 val left = (imageWidth - w) / 2
@@ -70,7 +70,7 @@ object CropCalculator {
             }
             else -> {
                 // Imagen más alta: recorte horizontal completo, alto a proporción exacta.
-                var h = kotlin.math.round(imageWidth / targetRatio)
+                var h = kotlin.math.round(imageWidth / targetRatio).toInt()
                 if (h > imageHeight) h = imageHeight
                 if (h < 1) h = 1
                 val top = (imageHeight - h) / 2
