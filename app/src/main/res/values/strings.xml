@@ -35,7 +35,9 @@
     <!-- Panel de calidad -->
     <string name="quality_title">Indicador de calidad</string>
     <string name="quality_effect_title">Original intacto</string>
-    <string name="quality_effect_body">Este modo aplica una composición PNG temporal. No modifica la imagen elegida; el fondo puede redimensionarse al tamaño del sistema.</string>
+    <string name="quality_effect_body">El original no se modifica. La imagen completa se ajusta proporcionalmente a la pantalla real; el espacio sobrante lo rellena el fondo elegido.</string>
+    <string name="quality_effect_upscale_title">La composición ampliará la imagen</string>
+    <string name="quality_effect_upscale_body">Se ampliará %1$s para caber en la pantalla. Puede suavizar algunos detalles; el original queda intacto.</string>
     <string name="quality_image">Imagen</string>
     <string name="quality_screen">Pantalla real</string>
     <string name="quality_desired">Mínimo del sistema</string>

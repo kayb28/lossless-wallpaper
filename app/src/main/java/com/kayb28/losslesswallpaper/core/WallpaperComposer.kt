@@ -67,7 +67,7 @@ object WallpaperComposer {
     }
 
     private fun containedRect(bitmap: Bitmap, target: RectF): RectF {
-        val scale = min(1f, min(target.width() / bitmap.width, target.height() / bitmap.height))
+        val scale = min(target.width() / bitmap.width, target.height() / bitmap.height)
         val width = bitmap.width * scale
         val height = bitmap.height * scale
         val left = target.centerX() - width / 2f

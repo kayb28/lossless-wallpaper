@@ -7,6 +7,7 @@ App Android que conserva intacto el archivo de galería: Recortar aplica sus byt
 - Eliges una imagen de la galería (Photo Picker del sistema, sin permisos de almacenamiento).
 - Ves la vista previa con el **recorte exacto a la proporción de tu pantalla** (arrastrable).
 - Eliges Recortar, Ajustar, Fondo continuo, Negro, Desenfoque o Extender bordes.
+- Ajustar conserva la imagen completa, mantiene su proporción y rellena el espacio sobrante con el fondo elegido; avisa si necesita ampliar una imagen pequeña.
 - Fondo continuo rellena con una copia ampliada y desenfocada de la misma imagen y desvanece sus bordes para ocultar el límite rectangular.
 - Detecta opcionalmente bandas uniformes y simétricas; puedes desactivar la detección o ajustar su sensibilidad.
 - Un indicador de calidad compara la resolución de la imagen con la de la pantalla real y con el mínimo que pide el sistema (`getDesiredMinimumWidth/Height`). Si la imagen es menor, lo avisa claramente — **nunca hace upscale a escondidas**.

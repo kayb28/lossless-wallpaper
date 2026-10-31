@@ -273,7 +273,14 @@ fun WallpaperApp() {
                     onSensitivityChange = { detectionSensitivity = it },
                 )
                 Spacer(Modifier.height(12.dp))
-                QualityPanel(info = currentInfo, screen = currentScreen, spec = currentSpec, cropRect = activeCrop, mode = mode)
+                QualityPanel(
+                    info = currentInfo,
+                    screen = currentScreen,
+                    spec = currentSpec,
+                    cropRect = activeCrop,
+                    mode = mode,
+                    fitArea = currentContentBounds,
+                )
                 Spacer(Modifier.height(12.dp))
                 TargetSelector(selected = target, onSelect = { target = it })
                 Spacer(Modifier.height(16.dp))
@@ -289,8 +296,8 @@ fun WallpaperApp() {
                                 crop = sourceArea,
                                 target = target,
                                 mode = mode,
-                                targetWidth = currentScreen.desiredWidth,
-                                targetHeight = currentScreen.desiredHeight,
+                                targetWidth = currentScreen.screenWidth,
+                                targetHeight = currentScreen.screenHeight,
                                 sourceWidth = currentInfo.width,
                                 sourceHeight = currentInfo.height,
                                 fitBackgroundColor = fitBackgroundColor,
@@ -607,6 +614,7 @@ private fun QualityPanel(
     spec: CropSpec?,
     cropRect: RectI?,
     mode: WallpaperMode,
+    fitArea: RectI,
 ) {
     if (info == null || screen == null || spec == null) return
     val mono = FontFamily.Monospace
@@ -635,6 +643,23 @@ private fun QualityPanel(
                     title = stringResource(R.string.quality_effect_title),
                     body = stringResource(R.string.quality_effect_body),
                 )
+                val fitScale = minOf(
+                    screen.screenWidth.toFloat() / fitArea.width,
+                    screen.screenHeight.toFloat() / fitArea.height,
+                )
+                if (fitScale > 1f) {
+                    Spacer(Modifier.height(8.dp))
+                    QualityBanner(
+                        backgroundColor = Color(0xFF3B2F14),
+                        borderColor = Color(0xFF8A6D2F),
+                        textColor = Color(0xFFE8C97A),
+                        title = stringResource(R.string.quality_effect_upscale_title),
+                        body = stringResource(
+                            R.string.quality_effect_upscale_body,
+                            String.format(Locale.US, "×%.2f", fitScale),
+                        ),
+                    )
+                }
                 return@Column
             }
             QualityRow(
