@@ -291,7 +291,9 @@ private fun PreviewCard(
     cropRect: RectI?,
     onMove: (Float, Float) -> Unit,
 ) {
-    val imageBitmap = remember(bitmap.id) { bitmap.asImageBitmap() }
+    // `Bitmap` no expone `id`; remember(bitmaps) compara por identidad (Bitmap no
+    // sobrescribe equals), así que un nuevo decodificado => nuevo ImageBitmap.
+    val imageBitmap = remember(bitmap) { bitmap.asImageBitmap() }
     var boxSizePx by remember { mutableStateOf(IntSize.Zero) }
 
     // Escala píxeles de imagen -> píxeles de la vista previa
