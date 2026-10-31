@@ -108,8 +108,8 @@ object CropCalculator {
             centerY.coerceIn(h / 2f, spec.imageHeight - h / 2f)
         }
 
-        val left = kotlin.math.round(cx - w / 2f).coerceIn(0, spec.imageWidth - w)
-        val top = kotlin.math.round(cy - h / 2f).coerceIn(0, spec.imageHeight - h)
+        val left = kotlin.math.round(cx - w / 2f).toInt().coerceIn(0, spec.imageWidth - w)
+        val top = kotlin.math.round(cy - h / 2f).toInt().coerceIn(0, spec.imageHeight - h)
         return RectI(left, top, left + w, top + h)
     }
 }
